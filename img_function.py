@@ -2,8 +2,8 @@ import os
 import cv2
 from PIL import Image
 import numpy as np
-import img_math 
-import img_recognition 
+import img_math
+import img_recognition
 
 SZ = 20  # 训练图片长宽
 MAX_WIDTH = 1000  # 原始图片最大宽度
@@ -57,11 +57,11 @@ class CardPredictor:
         :return:已经处理好的图像文件 原图像文件
         """
         if type(car_pic_file) == type(""):
-            img = img_math.img_read(car_pic_file)   #读取文件
+            img = img_math.img_read(car_pic_file)  # 读取文件
         else:
             img = car_pic_file
 
-        pic_hight, pic_width = img.shape[:2]  #取彩色图片的高、宽
+        pic_hight, pic_width = img.shape[:2]  # 取彩色图片的高、宽
         if pic_width > MAX_WIDTH:
             resize_rate = MAX_WIDTH / pic_width
             # 缩小图片
@@ -73,7 +73,6 @@ class CardPredictor:
         img = cv2.GaussianBlur(img, (5, 5), 0)
         # 高斯滤波是一种线性平滑滤波，对于除去高斯噪声有很好的效果
         # 0 是指根据窗口大小（ 5,5 ）来计算高斯函数标准差
-        
 
         oldimg = img
         # 转化成灰度图像
@@ -81,11 +80,11 @@ class CardPredictor:
         # BGR ---> Gray  cv2.COLOR_BGR2GRAY
         # BGR ---> HSV  cv2.COLOR_BGR2HSV
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        
+
         cv2.imwrite("tmp/img_gray.jpg", img)
-        
-        #ones()返回一个全1的n维数组 
-        Matrix = np.ones((20, 20), np.uint8)  
+
+        # ones()返回一个全1的n维数组
+        Matrix = np.ones((20, 20), np.uint8)
 
         # 开运算:先进性腐蚀再进行膨胀就叫做开运算。它被用来去除噪声。 cv2.MORPH_OPEN        
         img_opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, Matrix)
@@ -95,7 +94,6 @@ class CardPredictor:
         img_opening = cv2.addWeighted(img, 1, img_opening, -1, 0)
         # cv2.imwrite("tmp/img_opening.jpg", img_opening)
         # 创建20*20的元素为1的矩阵 开操作，并和img重合
-
 
         # Otsu’s二值化
         ret, img_thresh = cv2.threshold(img_opening, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -112,14 +110,14 @@ class CardPredictor:
         img_edge2 = cv2.morphologyEx(img_edge1, cv2.MORPH_OPEN, Matrix)
         cv2.imwrite("tmp/img_xingtai.jpg", img_edge2)
         return img_edge2, oldimg
-    
+
     def img_only_color(self, filename, oldimg, img_contours):
         """
         :param filename: 图像文件
         :param oldimg: 原图像文件
         :return: 识别到的字符、定位的车牌图像、车牌颜色
         """
-        pic_hight, pic_width = img_contours.shape[:2] # #取彩色图片的高、宽
+        pic_hight, pic_width = img_contours.shape[:2]  # #取彩色图片的高、宽
 
         lower_blue = np.array([100, 110, 110])
         upper_blue = np.array([130, 255, 255])
@@ -144,9 +142,9 @@ class CardPredictor:
 
         output = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
         Matrix = np.ones((20, 20), np.uint8)
-        #使用一个 20x20 的卷积核
-        img_edge1 = cv2.morphologyEx(output, cv2.MORPH_CLOSE, Matrix)  #闭运算
-        img_edge2 = cv2.morphologyEx(img_edge1, cv2.MORPH_OPEN, Matrix) #开运算
+        # 使用一个 20x20 的卷积核
+        img_edge1 = cv2.morphologyEx(output, cv2.MORPH_CLOSE, Matrix)  # 闭运算
+        img_edge2 = cv2.morphologyEx(img_edge1, cv2.MORPH_OPEN, Matrix)  # 开运算
 
         card_contours = img_math.img_findContours(img_edge2)
         card_imgs = img_math.img_Transform(card_contours, oldimg, pic_width, pic_hight)
@@ -177,14 +175,13 @@ class CardPredictor:
                 x_average = np.sum(x_histogram) / x_histogram.shape[0]
                 x_threshold = (x_min + x_average) / 2
                 wave_peaks = img_math.find_waves(x_threshold, x_histogram)
-                
+
                 if len(wave_peaks) == 0:
                     # print("peak less 0:")
                     continue
                 # 认为水平方向，最大的波峰为车牌区域
                 wave = max(wave_peaks, key=lambda x: x[1] - x[0])
 
-                
                 gray_img = gray_img[wave[0]:wave[1]]
                 # 查找垂直直方图波峰
                 row_num, col_num = gray_img.shape[:2]
@@ -226,10 +223,8 @@ class CardPredictor:
                     # print("peak less 2:", len(wave_peaks))
                     continue
                 # print(wave_peaks)
-                
+
                 # wave_peaks  车牌字符 类型列表 包含7个（开始的横坐标，结束的横坐标）
-
-
 
                 part_cards = img_math.seperate_card(gray_img, wave_peaks)
 
@@ -245,7 +240,7 @@ class CardPredictor:
 
                     part_card = cv2.copyMakeBorder(part_card, 0, 0, w, w, cv2.BORDER_CONSTANT, value=[0, 0, 0])
                     part_card = cv2.resize(part_card, (SZ, SZ), interpolation=cv2.INTER_AREA)
-                    
+
                     part_card = img_recognition.preprocess_hog([part_card])
                     if i == 0:
                         resp = self.modelchinese.predict(part_card)

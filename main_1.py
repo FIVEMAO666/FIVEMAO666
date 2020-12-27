@@ -1,6 +1,3 @@
-
-
-
 import cv2
 from tkinter import ttk
 from PIL import Image, ImageTk
@@ -9,7 +6,7 @@ import img_math as img_math
 import main_1 as m
 import PIL
 import numpy as np
-from PIL import ImageFont,Image,ImageDraw
+from PIL import ImageFont, Image, ImageDraw
 import cv2
 from PIL import Image
 
@@ -38,7 +35,7 @@ class UI_main():
         return imgtk
 
     def pic(self, img_bgr):
-        #img_bgr = img_math.img_read(pic_path)
+        # img_bgr = img_math.img_read(pic_path)
         first_img, oldimg = self.predictor.img_first_pre(img_bgr)
         if not self.cameraflag:
             self.imgtk = self.get_imgtk(img_bgr)
@@ -60,7 +57,8 @@ class UI_main():
         self.pic_path = '1.png'
         self.pic(self.pic_path)
 '''
-    def photo(self,img):     #定义的添加车牌文字函数
+
+    def photo(self, img):  # 定义的添加车牌文字函数
         cv2img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # cv2和PIL中颜色的hex码的储存顺序不同
         pilimg = Image.fromarray(cv2img)
 
@@ -71,61 +69,60 @@ class UI_main():
 
         # PIL图片转cv2 图片
         cv2charimg = cv2.cvtColor(np.array(pilimg), cv2.COLOR_RGB2BGR)
-        cv2.imshow('test', cv2charimg)        #显示图像
+        cv2.imshow('test', cv2charimg)  # 显示图像
         cv2.waitKey()
-
 
 
 def zmMinFilterGray(src, r=7):
     '''''最小值滤波，r是滤波器半径'''
-    return cv2.erode(src,np.ones((2*r-1,2*r-1)))
+    return cv2.erode(src, np.ones((2 * r - 1, 2 * r - 1)))
+
 
 def guidedfilter(I, p, r, eps):
     '''''引导滤波，直接参考网上的matlab代码'''
     height, width = I.shape
-    m_I = cv2.boxFilter(I, -1, (r,r))
-    m_p = cv2.boxFilter(p, -1, (r,r))
-    m_Ip = cv2.boxFilter(I*p, -1, (r,r))
-    cov_Ip = m_Ip-m_I*m_p
+    m_I = cv2.boxFilter(I, -1, (r, r))
+    m_p = cv2.boxFilter(p, -1, (r, r))
+    m_Ip = cv2.boxFilter(I * p, -1, (r, r))
+    cov_Ip = m_Ip - m_I * m_p
 
-    m_II = cv2.boxFilter(I*I, -1, (r,r))
-    var_I = m_II-m_I*m_I
+    m_II = cv2.boxFilter(I * I, -1, (r, r))
+    var_I = m_II - m_I * m_I
 
-    a = cov_Ip/(var_I+eps)
-    b = m_p-a*m_I
+    a = cov_Ip / (var_I + eps)
+    b = m_p - a * m_I
 
-    m_a = cv2.boxFilter(a, -1, (r,r))
-    m_b = cv2.boxFilter(b, -1, (r,r))
-    return m_a*I+m_b
+    m_a = cv2.boxFilter(a, -1, (r, r))
+    m_b = cv2.boxFilter(b, -1, (r, r))
+    return m_a * I + m_b
 
-def getV1(m, r, eps, w, maxV1):  #输入rgb图像，值范围[0,1]
+
+def getV1(m, r, eps, w, maxV1):  # 输入rgb图像，值范围[0,1]
     '''''计算大气遮罩图像V1和光照值A, V1 = 1-t/A'''
-    V1 = np.min(m,2)                                         #得到暗通道图像
-    V1 = guidedfilter(V1, zmMinFilterGray(V1,7), r, eps)     #使用引导滤波优化
+    V1 = np.min(m, 2)  # 得到暗通道图像
+    V1 = guidedfilter(V1, zmMinFilterGray(V1, 7), r, eps)  # 使用引导滤波优化
     bins = 2000
-    ht = np.histogram(V1, bins)                              #计算大气光照A
-    d = np.cumsum(ht[0])/float(V1.size)                      #将按列添加
-    for lmax in range(bins-1, 0, -1):
-        if d[lmax]<=0.999:
+    ht = np.histogram(V1, bins)  # 计算大气光照A
+    d = np.cumsum(ht[0]) / float(V1.size)  # 将按列添加
+    for lmax in range(bins - 1, 0, -1):
+        if d[lmax] <= 0.999:
             break
-    A  = np.mean(m,2)[V1>=ht[1][lmax]].max()
+    A = np.mean(m, 2)[V1 >= ht[1][lmax]].max()
 
-    V1 = np.minimum(V1*w, maxV1)                   #对值范围进行限制   在对应位置取最小值
+    V1 = np.minimum(V1 * w, maxV1)  # 对值范围进行限制   在对应位置取最小值
 
-    return V1,A
+    return V1, A
 
-def deHaze(m, r=81, eps=0.001, w=0.95, maxV1=0.80, bGamma=False):   #I(x)=J(x)t(x)+A[1−t(x)]
+
+def deHaze(m, r=81, eps=0.001, w=0.95, maxV1=0.80, bGamma=False):  # I(x)=J(x)t(x)+A[1−t(x)]
     Y = np.zeros(m.shape)
-    V1,A = getV1(m, r, eps, w, maxV1)               #得到遮罩图像和大气光照
+    V1, A = getV1(m, r, eps, w, maxV1)  # 得到遮罩图像和大气光照
     for k in range(3):
-        Y[:,:,k] = (m[:,:,k]-V1)/(1-V1/A)           #颜色校正
-    Y =  np.clip(Y, 0, 1)                           #设置最小值为0，最大值为1
+        Y[:, :, k] = (m[:, :, k] - V1) / (1 - V1 / A)  # 颜色校正
+    Y = np.clip(Y, 0, 1)  # 设置最小值为0，最大值为1
     if bGamma:
-        Y = Y**(np.log(0.5)/np.log(Y.mean()))       #gamma校正,默认不进行该操作
+        Y = Y ** (np.log(0.5) / np.log(Y.mean()))  # gamma校正,默认不进行该操作
     return Y
-
-
-
 
 
 if __name__ == '__main__':
@@ -134,22 +131,16 @@ if __name__ == '__main__':
     img = cv2.imread('1.png')
     print('是否执行去雾处理 1:不去雾  2:去雾')
     chose = input()
-    if chose =='1':     #执行不去雾的车牌识别
+    if chose == '1':  # 执行不去雾的车牌识别
         c.pic(img)
-        #print('c.car', c.car)
+        # print('c.car', c.car)
         c.photo(img)
-    elif chose =='2':   #执行去雾后的车牌识别
-        m = deHaze((img)/ 255.0) * 255
-        cv2.imwrite('test.jpg',m)
+    elif chose == '2':  # 执行去雾后的车牌识别
+        m = deHaze((img) / 255.0) * 255
+        cv2.imwrite('test.jpg', m)
         img = cv2.imread('test.jpg')
-        c.pic(img)        #调用车牌识别函数
-        #print('c.car', c.car)
-        c.photo(img)      #调用添加标记的图像处理函数
+        c.pic(img)  # 调用车牌识别函数
+        # print('c.car', c.car)
+        c.photo(img)  # 调用添加标记的图像处理函数
     else:
         print('重新输入')
-
-
-
-
-
-
